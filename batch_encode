@@ -1,0 +1,20 @@
+#!/bin/sh
+# Template script for batch encoding ready wav files to other format
+# Mattias Wadman <mattias.wadman@softdays.se>
+
+set -e
+
+while true ; do
+    find . -name "*.wav" | grep -v -E "recording.wav$" | \
+    while read FILE ; do
+        OUTPUT=${FILE/%.wav/.ogg}
+        
+        echo "no act: oggenc -i $FILE -o $OUTPUT"
+        echo "no act: if ok, rm $FILE"
+    done
+
+    echo "waiting..."
+
+    sleep 60
+done
+

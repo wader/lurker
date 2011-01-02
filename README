@@ -1,0 +1,69 @@
+lurker, an audio silence splitter
+Mattias Wadman <mattias.wadman@gmail.com>
+
+INSTALLATION:
+
+You will need some kind of curses development packge installed.
+apt-get install libncurses5-dev in debian.
+
+Run "make" and copy the lurker binary somewhere if you want.
+
+
+EXAMPLE USAGE:
+
+Realtime audio splitting:
+recoding program | lurker -t 0.15 -r 10 -f 0.5 -o "%F/%F_%H:%M:%S.wav"
+Threshold 0.15, split if 10 seconds of silence, remove recording if less then
+0.5 seconds long and output files relative to current directory.
+
+Splitting an previously recorded file:
+lurker -s "1970-10-10 07:00:00" -i long_old_recording.wav
+With -s the amount of audio time offseted from the start time will be used
+insted of system clock when generating output filenames.
+
+OSS:
+install bplay (apt-get install bplay in debian)
+brec -w -b 16 | lurker ...
+
+ALSA:
+install arecord (apt-get install alsa-utils in debian)
+arecord -q -t wav -c 1 -f S16_LE | lurker ...
+
+
+OTHER HINTS:
+
+lurker wants 16 bit mono PCM (not compressed) audio in wav format as input.
+
+lurker automaticaly creates non-existing directories in the output path.
+
+Read man page for brec and arecord if you want higher sample rate, record for a
+limited amount of time etc.
+
+The program should work fine on big endian machines (powerpc, SPARC, ...) but
+have not been tested yet.
+
+Wav filename is appended with "recording.wav" (configurable) while recording
+to make it possible to exclude them while batch encoding, see batch_encode
+template script.
+
+If the rotating progress indicator stops the program providing audio data to
+lurker has stopped or is blocking for some reason. If not, you have probably
+found a bug in lurker.
+
+If you dont trust your system clock for some reason you can try to use the -s
+option with current date and time (or value "now" if system clock is correct
+at program start).
+
+If you see message of the type "overrun!!! (at least 4277.546 ms long)" they
+are from arecord. I dont know the reason, high CPU usage maybe?
+
+Dont use additional directories (includes "/") with the -a (append recording)
+option, it will fail.
+
+The slice divisor option decides the amount of audio data to be processed at a
+time (how much to run thru the RMS function etc), if set low it will require
+more "noise" to trigger.
+
+
+And last, please let me know if you use this program for something interesting.
+
