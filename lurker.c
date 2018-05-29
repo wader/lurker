@@ -362,7 +362,7 @@ int lurk()
                 free(s);
                 
                 out.riff.size = INT32_MAX; /* as big as possible, wav_close_write will fix them */
-                out.data.size = INT32_MAX;
+                out.data_header.size = INT32_MAX;
                 out.format.audio_format = 1; /* PCM */
                 out.format.num_channels = 1; /* mono */
                 out.format.sample_rate = in.format.sample_rate;

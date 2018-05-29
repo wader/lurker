@@ -19,6 +19,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 
@@ -31,11 +32,11 @@ int wav_open_write(char *file, wav_file *w)
     /* fill in header constants */
     strncpy(w->riff.id, "RIFF", 4);
     strncpy(w->riff.format, "WAVE", 4);
-    strncpy(w->format.id, "fmt ", 4);
-    strncpy(w->data.id, "data", 4);
+    strncpy(w->format_header.id, "fmt ", 4);
+    strncpy(w->data_header.id, "data", 4);
 
     /* PCM format header size */
-    w->format.size = sizeof(w->format) - sizeof(w->format.id) - sizeof(w->format.size);
+    w->format_header.size = sizeof(w->format);
     
     w->stream = fopen(file, "w");
     if(w->stream == NULL)
@@ -46,8 +47,9 @@ int wav_open_write(char *file, wav_file *w)
     }
 
     if(riff_write_chunk(w->stream, &w->riff) == -1 ||
-       riff_write_sub_chunk_wave_format(w->stream, &w->format) == -1 ||
-       riff_write_sub_chunk_wave_data(w->stream, &w->data) == -1)
+       riff_write_sub_chunk_header(w->stream, &w->format_header) == -1 ||
+       riff_write_sub_chunk_body_wave_format(w->stream, &w->format) == -1 ||
+       riff_write_sub_chunk_header(w->stream, &w->data_header) == -1)
     {
         fprintf(stderr, "wav_open_write: Failed to write header\n");
         fclose(w->stream);
@@ -72,10 +74,8 @@ int wav_open_read(char *file, wav_file *w)
             return -1;
         }
     }
-        
-    if(riff_read_chunk(w->stream, &w->riff) == -1 ||
-       riff_read_sub_chunk_wave_format(w->stream, &w->format) == -1 ||
-       riff_read_sub_chunk_wave_data(w->stream, &w->data) == -1)
+
+    if(riff_read_chunk(w->stream, &w->riff) == -1)
     {
         fprintf(stderr, "wave_open_read: Failed to read RIFF header\n");
         fclose(w->stream);
@@ -99,20 +99,42 @@ int wav_open_read(char *file, wav_file *w)
         return -1;
     }
 
-    if(strncmp(w->format.id, "fmt ", 4) != 0)
-    {
-        fprintf(stderr, "wav_open_read: WAVE format sub chunk id is not \"fmt \"\n");
-        fclose(w->stream);
+    for (;;) {
+        riff_sub_chunk_header header;
+        if(riff_read_sub_chunk(w->stream, &header) == -1)
+        {
+            fprintf(stderr, "wave_open_read: Failed to read RIFF sub chunk header\n");
+            fclose(w->stream);
 
-        return -1;
-    }
+            return -1;
+        }
 
-    if(strncmp(w->data.id, "data", 4) != 0)
-    {
-        fprintf(stderr, "wav_open_read: WAVE sub chunk id is not \"data\"\n");
-        fclose(w->stream);
+        printf("'%.*s' %ld\n", 4, &header.id, header.size);
 
-        return -1;
+        if(strncmp(&header.id, "fmt ", 4) == 0)
+        {
+                    printf("fmt ASDASDSAD\n");
+
+
+            if(riff_read_sub_chunk_body_wave_format(w->stream, &w->format) == -1)
+            {
+                fprintf(stderr, "wave_open_read: Failed to read RIFF fmt header\n");
+                fclose(w->stream);
+
+                return -1;
+            }
+        }
+        else if(strncmp(header.id, "data", 4) == 0)
+        {
+            break;
+        }
+        else
+        {
+            // skip sub chunk
+            char *b = malloc(header.size);
+            fread(b, header.size, 1, w->stream);
+            free(b);
+        }
     }
 
     return 0;
@@ -129,7 +151,12 @@ int wav_close_write(wav_file *w)
     }
     
     w->riff.size = ftell(w->stream) - 8; /* total size - parts of riff header */
-    w->data.size = ftell(w->stream) - sizeof(w->riff) - sizeof(w->format) - sizeof(w->data);
+    w->data_header.size = ftell(w->stream) - (
+        sizeof(w->riff) +
+        sizeof(w->format_header) +
+        sizeof(w->format) +
+        sizeof(w->data_header)
+    );
     
     /* seek to beginning of file */
     if(fseek(w->stream, 0, SEEK_SET) == -1)
@@ -141,8 +168,9 @@ int wav_close_write(wav_file *w)
     
     /* rewrite header */
     if(riff_write_chunk(w->stream, &w->riff) == -1 ||
-       riff_write_sub_chunk_wave_format(w->stream, &w->format) == -1 ||
-       riff_write_sub_chunk_wave_data(w->stream, &w->data) == -1)
+       riff_write_sub_chunk_header(w->stream, &w->format_header) == -1 ||
+       riff_write_sub_chunk_body_wave_format(w->stream, &w->format) == -1 ||
+       riff_write_sub_chunk_header(w->stream, &w->data_header) == -1)
     {
         fprintf(stderr, "wav_close_write: Failed to rewrite header\n");
 
@@ -166,8 +194,9 @@ void wav_truncate(wav_file *w, off_t size)
     fflush(w->stream);
     ftruncate(fileno(w->stream),
               sizeof(riff_chunk) +
-              sizeof(riff_sub_chunk_wave_format) +
-              sizeof(riff_sub_chunk_wave_data) +
+              sizeof(riff_sub_chunk_header) +
+              sizeof(riff_sub_chunk_body_wave_format) +
+              sizeof(riff_sub_chunk_header) +
               /* align size to whole blocks */
               size - (size % w->format.block_align)
               );

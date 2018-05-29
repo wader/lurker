@@ -28,7 +28,7 @@
 
 int riff_read_chunk(FILE *stream, riff_chunk *r)
 {
-    if(fread(r, sizeof(riff_chunk), 1, stream) != 1)
+    if(fread(r, sizeof(*r), 1, stream) != 1)
         return -1;
 
 #if __BYTE_ORDER != __LITTLE_ENDIAN
@@ -38,32 +38,31 @@ int riff_read_chunk(FILE *stream, riff_chunk *r)
     return 0;
 }
 
-int riff_read_sub_chunk_wave_format(FILE *stream, riff_sub_chunk_wave_format *r)
+int riff_read_sub_chunk(FILE *stream, riff_sub_chunk_header *r)
 {
-    if(fread(r, sizeof(riff_sub_chunk_wave_format), 1, stream) != 1)
+    if(fread(r, sizeof(*r), 1, stream) != 1)
         return -1;
 
-#if __BYTE_ORDER != __LITTLE_ENDIAN
-    r->size = bswap_32(r->size);
-    r->audio_format = bswap_16(r->audio_format);
-    r->num_channels = bswap_16(r->num_channels);
-    r->sample_rate = bswap_32(r->sample_rate);
-    r->byte_rate = bswap_32(r->byte_rate);
-    r->block_align = bswap_16(r->block_align);
-    r->bits_per_sample = bswap_16(r->bits_per_sample);
-#endif
-    
+    #if __BYTE_ORDER != __LITTLE_ENDIAN
+        r->size = bswap_32(r->size);
+    #endif
+
     return 0;
 }
 
-int riff_read_sub_chunk_wave_data(FILE *stream, riff_sub_chunk_wave_data *r)
+int riff_read_sub_chunk_body_wave_format(FILE *stream, riff_sub_chunk_body_wave_format *r)
 {
-    if(fread(r, sizeof(riff_sub_chunk_wave_data), 1, stream) != 1)
+    if(fread(r, sizeof(*r), 1, stream) != 1)
         return -1;
 
-#if __BYTE_ORDER != __LITTLE_ENDIAN
-    r->size = bswap_32(r->size);
-#endif
+    #if __BYTE_ORDER != __LITTLE_ENDIAN
+        r->audio_format = bswap_16(r->audio_format);
+        r->num_channels = bswap_16(r->num_channels);
+        r->sample_rate = bswap_32(r->sample_rate);
+        r->byte_rate = bswap_32(r->byte_rate);
+        r->block_align = bswap_16(r->block_align);
+        r->bits_per_sample = bswap_16(r->bits_per_sample);
+    #endif
     
     return 0;
 }
@@ -103,12 +102,27 @@ int riff_write_chunk(FILE *stream, riff_chunk *r)
     return 0;
 }
 
-int riff_write_sub_chunk_wave_format(FILE *stream, riff_sub_chunk_wave_format *r)
+int riff_write_sub_chunk_header(FILE *stream, riff_sub_chunk_header *r)
 {
-    riff_sub_chunk_wave_format c = *r;
+#if __BYTE_ORDER != __LITTLE_ENDIAN
+    r->size = bswap_32(r->size);
+#endif
+
+    if(fwrite(r, sizeof(*r), 1, stream) != 1)
+        return -1;
+
+#if __BYTE_ORDER != __LITTLE_ENDIAN
+    r->size = bswap_32(r->size);
+#endif
+
+    return 0;
+}
+
+int riff_write_sub_chunk_body_wave_format(FILE *stream, riff_sub_chunk_body_wave_format *r)
+{
+    riff_sub_chunk_body_wave_format c = *r;
     
 #if __BYTE_ORDER != __LITTLE_ENDIAN
-    c.size = bswap_32(c.size);
     c.audio_format = bswap_16(c.audio_format);
     c.num_channels = bswap_16(c.num_channels);
     c.sample_rate = bswap_32(c.sample_rate);
@@ -119,22 +133,6 @@ int riff_write_sub_chunk_wave_format(FILE *stream, riff_sub_chunk_wave_format *r
     
     if(fwrite(&c, sizeof(c), 1, stream) != 1)
         return -1;
-    
-    return 0;
-}
-
-int riff_write_sub_chunk_wave_data(FILE *stream, riff_sub_chunk_wave_data *r)
-{
-#if __BYTE_ORDER != __LITTLE_ENDIAN
-    r->size = bswap_32(r->size);
-#endif
-    
-    if(fwrite(r, sizeof(*r), 1, stream) != 1)
-        return -1;
-
-#if __BYTE_ORDER != __LITTLE_ENDIAN
-    r->size = bswap_32(r->size);
-#endif
     
     return 0;
 }

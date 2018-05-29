@@ -1,4 +1,4 @@
-CFLAGS = -Wall -g -O3 -D_GNU_SOURCE
+CFLAGS = -Wall -ggdb -g -O0 -D_GNU_SOURCE
 LDFLAGS = -lm -lcurses
 
 all: lurker

@@ -10,8 +10,9 @@ struct wav_file
 {
     FILE *stream;
     riff_chunk riff;
-    riff_sub_chunk_wave_format format;
-    riff_sub_chunk_wave_data data;
+    riff_sub_chunk_header format_header;
+    riff_sub_chunk_body_wave_format format;
+    riff_sub_chunk_header data_header;
 };
 
 typedef struct wav_file wav_file;
